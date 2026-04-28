@@ -1,0 +1,15 @@
+################################################################
+# Manage amm-video deployment through Crypto Infrastructure as Code
+################################################################
+
+addon "svm" {
+    rpc_api_url = input.rpc_api_url
+    network_id = input.network_id
+}
+
+action "deploy_amm_video" "svm::deploy_program" {
+    description = "Deploy amm_video program"
+    program = svm::get_program_from_anchor_project("amm_video") 
+    authority = signer.authority
+    payer = signer.payer
+}
