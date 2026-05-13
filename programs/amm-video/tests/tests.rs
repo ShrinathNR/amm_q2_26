@@ -3,7 +3,7 @@ use {
     litesvm::LiteSVM,
     litesvm_token::CreateMint,
     solana_keypair::Keypair,
-    solana_message::{Message, VersionedMessage},
+    solana_message::{Instruction, Message, VersionedMessage},
     solana_pubkey::Pubkey,
     solana_signer::Signer,
     solana_transaction::versioned::VersionedTransaction,
@@ -11,6 +11,19 @@ use {
 
 mod ix_handlers;
 use ix_handlers::*;
+
+fn send(
+    svm: &mut LiteSVM,
+    ixs: &[Instruction],
+    payer: &Keypair,
+    signers: &[&Keypair],
+) -> litesvm::types::TransactionResult {
+    svm.expire_blockhash();
+    let blockhash = svm.latest_blockhash();
+    let msg = Message::new_with_blockhash(ixs, Some(&payer.pubkey()), &blockhash);
+    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), signers).unwrap();
+    svm.send_transaction(tx)
+}
 
 // Setup function to initialize LiteSVM and create a payer keypair
 fn setup() -> (
@@ -64,110 +77,63 @@ fn test_initialize() {
     let instruction = create_initialise_ix(
         &mut svm, &payer, mint_x, mint_y, config, mint_lp, vault_x, vault_y,
     );
-
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[instruction], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
+    let res = send(&mut svm, &[instruction], &payer, &[&payer]);
     assert!(res.is_ok());
 }
 
 #[test]
 pub fn test_deposit() {
     let (mut svm, payer, mint_x, mint_y, config, mint_lp, vault_x, vault_y) = setup();
-    let init_instruction = create_initialise_ix(
+    let init_ix = create_initialise_ix(
         &mut svm, &payer, mint_x, mint_y, config, mint_lp, vault_x, vault_y,
     );
-
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[init_instruction], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
 
     let deposit_ix = create_deposit_ix(
         &mut svm, &payer, mint_x, mint_y, mint_lp, config, vault_x, vault_y,
     );
 
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[deposit_ix], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
+    let res = send(&mut svm, &[init_ix, deposit_ix], &payer, &[&payer]);
     assert!(res.is_ok());
 }
 
 #[test]
 pub fn test_withdraw() {
     let (mut svm, payer, mint_x, mint_y, config, mint_lp, vault_x, vault_y) = setup();
-    let init_instruction = create_initialise_ix(
+    let init_ix = create_initialise_ix(
         &mut svm, &payer, mint_x, mint_y, config, mint_lp, vault_x, vault_y,
     );
-
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[init_instruction], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
 
     let deposit_ix = create_deposit_ix(
         &mut svm, &payer, mint_x, mint_y, mint_lp, config, vault_x, vault_y,
     );
 
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[deposit_ix], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
-
     let withdraw_ix = create_withdraw_ix(
         &mut svm, &payer, mint_x, mint_y, mint_lp, config, vault_x, vault_y,
     );
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[withdraw_ix], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
+    let res = send(
+        &mut svm,
+        &[init_ix, deposit_ix, withdraw_ix],
+        &payer,
+        &[&payer],
+    );
     assert!(res.is_ok());
 }
 
 #[test]
 pub fn test_swap() {
     let (mut svm, payer, mint_x, mint_y, config, mint_lp, vault_x, vault_y) = setup();
-    let init_instruction = create_initialise_ix(
+    let init_ix = create_initialise_ix(
         &mut svm, &payer, mint_x, mint_y, config, mint_lp, vault_x, vault_y,
     );
-
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[init_instruction], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
 
     let deposit_ix = create_deposit_ix(
         &mut svm, &payer, mint_x, mint_y, mint_lp, config, vault_x, vault_y,
     );
 
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[deposit_ix], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
-    assert!(res.is_ok());
-
     let swap_ix = create_swap_ix(
         &mut svm, &payer, mint_x, mint_y, mint_lp, config, vault_x, vault_y,
     );
 
-    let blockhash = svm.latest_blockhash();
-    let msg = Message::new_with_blockhash(&[swap_ix], Some(&payer.pubkey()), &blockhash);
-    let tx = VersionedTransaction::try_new(VersionedMessage::Legacy(msg), &[&payer]).unwrap();
-
-    let res = svm.send_transaction(tx);
+    let res = send(&mut svm, &[init_ix, deposit_ix, swap_ix], &payer, &[&payer]);
     assert!(res.is_ok());
 }
