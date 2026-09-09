@@ -11,9 +11,7 @@ use crate::{error::AmmError, state::Config};
 pub struct Withdraw<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
-    #[account(mut)]
     pub mint_x: Box<Account<'info, Mint>>,
-    #[account(mut)]
     pub mint_y: Box<Account<'info, Mint>>,
     #[account(
         has_one = mint_x,
@@ -73,20 +71,15 @@ impl<'info> Withdraw<'info> {
         require!(!self.config.locked, AmmError::PoolLocked);
         require_neq!(amount, 0, AmmError::InvalidAmount);
 
-        let (x, y) =
-            if self.mint_lp.supply == 0 && self.vault_x.amount == 0 && self.vault_y.amount == 0 {
-                (min_x, min_y)
-            } else {
-                let amounts = ConstantProduct::xy_withdraw_amounts_from_l(
-                    self.vault_x.amount,
-                    self.vault_y.amount,
-                    self.mint_lp.supply,
-                    amount,
-                    6,
-                )
-                .unwrap();
-                (amounts.x, amounts.y)
-            };
+        let amounts = ConstantProduct::xy_withdraw_amounts_from_l(
+            self.vault_x.amount,
+            self.vault_y.amount,
+            self.mint_lp.supply,
+            amount,
+            6,
+        )
+        .unwrap();
+        let (x, y) = (amounts.x, amounts.y);
 
         require!(x >= min_x && y >= min_y, AmmError::SlippageExceeded);
 

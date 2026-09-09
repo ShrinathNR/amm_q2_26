@@ -21,7 +21,6 @@ pub struct Swap<'info> {
     )]
     pub config: Account<'info, Config>,
     #[account(
-        mut,
         seeds = [b"lp", config.key().as_ref()],
         bump = config.lp_bump,
     )]
@@ -50,13 +49,6 @@ pub struct Swap<'info> {
         associated_token::authority = user,
     )]
     pub user_y: Box<Account<'info, TokenAccount>>,
-    // #[account(
-    //     init_if_needed,
-    //     payer = user,
-    //     associated_token::mint = mint_lp,
-    //     associated_token::authority = user
-    // )]
-    // pub user_lp: Box<Account<'info, TokenAccount>>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub associated_token_program: Program<'info, AssociatedToken>,
@@ -84,7 +76,7 @@ impl<'info> Swap<'info> {
             .map_err(|_| AmmError::SlippageExceeded)?;
 
         self.deposit_tokens(is_x, swap_result.deposit)?;
-        self.withdraw_tokens(!is_x, swap_result.withdraw)
+        self.withdraw_tokens(is_x, swap_result.withdraw)
     }
 
     pub fn deposit_tokens(&mut self, is_x: bool, amount: u64) -> Result<()> {
